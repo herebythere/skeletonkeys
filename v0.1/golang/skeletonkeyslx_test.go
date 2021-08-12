@@ -97,7 +97,7 @@ func TestParseAvailableService(t *testing.T) {
 }
 
 func TestParseAndSetAvailableServices(t *testing.T) {
-	errParseAndSet := parseAndSetAvailableServices(
+	errParseAndSet := ParseAndSetAvailableServices(
 		localCacheAddress,
 		skeletonKeysTest,
 		testAvailableServicesPath,
@@ -224,7 +224,7 @@ func TestParseSkeletonKeys(t *testing.T) {
 }
 
 func TestParseAndSetSkeletonKeys(t *testing.T) {
-	errParseAndSet := parseAndSetSkeletonKeys(
+	errParseAndSet := ParseAndSetSkeletonKeys(
 		localCacheAddress,
 		skeletonKeysTest,
 		testSkeletonKeysPath,

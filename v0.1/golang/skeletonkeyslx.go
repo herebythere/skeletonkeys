@@ -202,36 +202,6 @@ func parseAvailableServicesByFilepath(
 	return &services, errServices
 }
 
-func parseAndSetAvailableServices(
-	cacheAddress string,
-	identifier string,
-	path string,
-) error {
-	availableServices, errAvailableServices := parseAvailableServicesByFilepath(path)
-	if errAvailableServices != nil {
-		return errAvailableServices
-	}
-	if availableServices == nil {
-		return errAvailableServiceDoesNotExist
-	}
-
-	for _, service := range *availableServices {
-		setSuccessful, errSetServices := setAvailableService(
-			cacheAddress,
-			identifier,
-			service,
-		)
-		if errSetServices != nil {
-			return errSetServices
-		}
-		if !setSuccessful {
-			return errSetServiceUnsuccessful
-		}
-	}
-
-	return nil
-}
-
 func setSkeletonKey(
 	cacheAddress string,
 	identifier string,
@@ -343,7 +313,42 @@ func parseSkeletonKeysByFilepath(path string) (*SkeletonKeyMap, error) {
 	return &skeletonKeys, errSkeletonKeys
 }
 
-func parseAndSetSkeletonKeys(
+func ParseAndSetAvailableServices(
+	cacheAddress string,
+	identifier string,
+	path string,
+) error {
+	availableServices, errAvailableServices := parseAvailableServicesByFilepath(path)
+	if errAvailableServices != nil {
+		return errAvailableServices
+	}
+	if availableServices == nil {
+		return errAvailableServiceDoesNotExist
+	}
+
+	for _, service := range *availableServices {
+		setSuccessful, errSetServices := setAvailableService(
+			cacheAddress,
+			identifier,
+			service,
+		)
+		if errSetServices != nil {
+			return errSetServices
+		}
+		if !setSuccessful {
+			return errSetServiceUnsuccessful
+		}
+	}
+
+	return nil
+}
+
+/*
+ * Exposed API
+ *
+ */
+
+func ParseAndSetSkeletonKeys(
 	cacheAddress string,
 	identifier string,
 	path string,
@@ -461,7 +466,7 @@ func SetupSkeletonKeysAndAvailableServices(
 	availableServicesPath string,
 	skeletonKeysPath string,
 ) error {
-	errPaseAvailableServices := parseAndSetAvailableServices(
+	errPaseAvailableServices := ParseAndSetAvailableServices(
 		cacheAddress,
 		identifier,
 		availableServicesPath,
@@ -470,7 +475,7 @@ func SetupSkeletonKeysAndAvailableServices(
 		return errPaseAvailableServices
 	}
 
-	errParseSkeletonKeys := parseAndSetSkeletonKeys(
+	errParseSkeletonKeys := ParseAndSetSkeletonKeys(
 		cacheAddress,
 		identifier,
 		skeletonKeysPath,
