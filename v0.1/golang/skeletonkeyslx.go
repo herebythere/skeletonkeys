@@ -7,7 +7,6 @@ import (
 	"errors"
 	"io/ioutil"
 	"net/http"
-	"os"
 	"strings"
 
 	passwordx "github.com/herebythere/passwordx/v0.1/golang"
@@ -21,30 +20,27 @@ type SkeletonKeyMap = map[string]KeyDetails
 type AvailableServiceList = []string
 
 const (
-	hset      = "HSET"
-	hget      = "HGET"
-	trueAsStr = "1"
-
-	SkeletonKey         = "skeleton_key"
+	setCache            = "SET"
+	getCache            = "GET"
+	okCache             = "OK"
+	trueAsStr           = "1"
 	colonDelimiter      = ":"
-	AvailableServices   = "available_services"
-	SaltedPasswordHash  = "salted_password_hash"
-	SkeletonKeyServices = "skeleton_key_services"
+	availableServices   = "available_services"
+	saltedPasswordHash  = "salted_password_hash"
+	skeletonKeyServices = "skeleton_key_services"
 	applicationJSON     = "application/json"
 )
 
 var (
-	localCacheAddress = os.Getenv("LOCAL_CACHE_ADDRESS")
-
-	errSkeletonKeyDoesNotExist        = errors.New("skeleton key does not exist")
 	errNilEntry                       = errors.New("nil entry was provided")
+	errNilStringWasReturned           = errors.New("nil string was returned")
 	errAvailableServiceDoesNotExist   = errors.New("available service does not exist")
 	errSkeletonKeysAreNil             = errors.New("skeleton keys are nil")
 	errSkeletonKeyServiceDoesNotExist = errors.New("skeleton key service does not exist")
-
-	errSetKeyUnsuccessful        = errors.New("set skeleton key was unsuccessful")
-	errSetKeyServiceUnsuccessful = errors.New("set skeleton key service was unsuccessful")
-	errSetServiceUnsuccessful    = errors.New("set service was unsuccessful")
+	errSetKeyUnsuccessful             = errors.New("set skeleton key was unsuccessful")
+	errSetKeyServiceUnsuccessful      = errors.New("set skeleton key service was unsuccessful")
+	errSetServiceUnsuccessful         = errors.New("set service was unsuccessful")
+	errRequestFailedToResolve         = errors.New("request failed to resolve instructions")
 )
 
 /*
@@ -56,86 +52,183 @@ func getCacheSetID(categories ...string) string {
 	return strings.Join(categories, colonDelimiter)
 }
 
-func parseCachedString(resp *http.Response) (*string, error) {
-	var serviceAsBase64 string
-	errJSONResponse := json.NewDecoder(resp.Body).Decode(&serviceAsBase64)
-	if errJSONResponse != nil {
-
-		return nil, errJSONResponse
-	}
-
-	serviceAsBytes, errServiceAsBytes := base64.URLEncoding.DecodeString(
-		serviceAsBase64,
-	)
-	if errServiceAsBytes != nil {
-
-		return nil, errServiceAsBytes
-	}
-
-	serviceReturned := string(serviceAsBytes)
-	return &serviceReturned, nil
-}
-
-func postJSONRequest(
+func execInstructionsAndParseInt64(
+	cacheAddress string,
 	instructions []interface{},
 ) (
-	*http.Response,
+	*int64,
 	error,
 ) {
 	if instructions == nil {
 		return nil, errNilEntry
 	}
 
-	instructionsAsJSON, errInstructionsAsJSON := json.Marshal(instructions)
-	if errInstructionsAsJSON != nil {
-
-		return nil, errInstructionsAsJSON
+	bodyBytes := new(bytes.Buffer)
+	errJson := json.NewEncoder(bodyBytes).Encode(instructions)
+	if errJson != nil {
+		return nil, errJson
 	}
 
-	requestBody := bytes.NewBuffer(instructionsAsJSON)
+	resp, errResp := http.Post(cacheAddress, applicationJSON, bodyBytes)
+	if errResp != nil {
+		return nil, errResp
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, errRequestFailedToResolve
+	}
 
-	return http.Post(localCacheAddress, applicationJSON, requestBody)
+	var respBodyInt64 int64
+	errJSONResponse := json.NewDecoder(resp.Body).Decode(&respBodyInt64)
+	if errJSONResponse != nil {
+		return nil, errJSONResponse
+	}
+	if &respBodyInt64 != nil {
+		return &respBodyInt64, nil
+	}
+
+	return nil, errNilStringWasReturned
 }
 
-func setAvailableService(serverName string, service string) (bool, error) {
-	setID := getCacheSetID(serverName, AvailableServices)
-	instructions := []interface{}{hset, setID, service, true}
+func execInstructionsAndParseString(
+	cacheAddress string,
+	instructions []interface{},
+) (
+	*string,
+	error,
+) {
+	if instructions == nil {
+		return nil, errNilEntry
+	}
 
-	// HSET just produced an update of the value, 0 is returned,
-	// otherwise if a new field is created 1 is returned.
-	// HSET does not fail
-	resp, errResponse := postJSONRequest(instructions)
-	if errResponse != nil {
-		return false, errResponse
+	bodyBytes := new(bytes.Buffer)
+	errJson := json.NewEncoder(bodyBytes).Encode(instructions)
+	if errJson != nil {
+		return nil, errJson
+	}
+
+	resp, errResp := http.Post(cacheAddress, applicationJSON, bodyBytes)
+	if errResp != nil {
+		return nil, errResp
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusOK {
+	if resp.StatusCode != http.StatusOK {
+		return nil, errRequestFailedToResolve
+	}
+
+	var respBodyAsBase64 string
+	errJSONResponse := json.NewDecoder(resp.Body).Decode(&respBodyAsBase64)
+	if errJSONResponse != nil {
+		return nil, errJSONResponse
+	}
+
+	return &respBodyAsBase64, errJSONResponse
+}
+
+func execInstructionsAndParseBase64(
+	cacheAddress string,
+	instructions []interface{},
+) (
+	*string,
+	error,
+) {
+	if instructions == nil {
+		return nil, errNilEntry
+	}
+
+	bodyBytes := new(bytes.Buffer)
+	errJson := json.NewEncoder(bodyBytes).Encode(instructions)
+	if errJson != nil {
+		return nil, errJson
+	}
+
+	resp, errResp := http.Post(cacheAddress, applicationJSON, bodyBytes)
+	if errResp != nil {
+		return nil, errResp
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, errRequestFailedToResolve
+	}
+
+	var respBodyAsBase64 string
+	errJSONResponse := json.NewDecoder(resp.Body).Decode(&respBodyAsBase64)
+	if errJSONResponse != nil {
+		return nil, errJSONResponse
+	}
+
+	respBodyAsBytes, errRespBodyAsBytes := base64.URLEncoding.DecodeString(
+		respBodyAsBase64,
+	)
+	if errRespBodyAsBytes != nil {
+		return nil, errRespBodyAsBytes
+	}
+
+	respBodyAsStr := string(respBodyAsBytes)
+
+	return &respBodyAsStr, nil
+}
+
+func setAvailableService(
+	cacheAddress string,
+	identifier string,
+	service string,
+) (
+	bool,
+	error,
+) {
+	setID := getCacheSetID(identifier, availableServices, service)
+	instructions := []interface{}{setCache, setID, true}
+
+	respStr, errRespStr := execInstructionsAndParseString(
+		cacheAddress,
+		instructions,
+	)
+	if errRespStr != nil {
+		return false, errRespStr
+	}
+
+	if *respStr == okCache {
 		return true, nil
 	}
 
-	return false, nil
+	return false, errRequestFailedToResolve
 }
 
-func getAvailableService(serverName string, service string) (bool, error) {
-	setID := getCacheSetID(serverName, AvailableServices)
-	instructions := []interface{}{hget, setID, service}
+func getAvailableService(
+	cacheAddress string,
+	identifier string,
+	service string,
+) (
+	bool,
+	error,
+) {
+	setID := getCacheSetID(identifier, availableServices, service)
+	instructions := []interface{}{getCache, setID}
 
-	resp, errResponse := postJSONRequest(instructions)
-	if errResponse != nil {
-		return false, errResponse
+	respStr, errRespStr := execInstructionsAndParseBase64(
+		cacheAddress,
+		instructions,
+	)
+	if errRespStr != nil {
+		return false, errRespStr
 	}
-	defer resp.Body.Close()
 
-	serviceReturned, errServiceReturned := parseCachedString(resp)
-	if errServiceReturned != nil {
-		return false, errServiceReturned
+	if *respStr == trueAsStr {
+		return true, nil
 	}
 
-	return *serviceReturned == trueAsStr, nil
+	return false, errRespStr
 }
 
-func parseAvailableServicesByFilepath(path string) (*AvailableServiceList, error) {
+func parseAvailableServicesByFilepath(
+	path string,
+) (
+	*AvailableServiceList,
+	error,
+) {
 	servicesJSON, errServicesJSON := ioutil.ReadFile(path)
 	if errServicesJSON != nil {
 		return nil, errServicesJSON
@@ -147,7 +240,11 @@ func parseAvailableServicesByFilepath(path string) (*AvailableServiceList, error
 	return &services, errServices
 }
 
-func parseAndSetAvailableServices(serverName string, path string, err error) error {
+func parseAndSetAvailableServices(
+	cacheAddress string,
+	identifier string,
+	path string,
+) error {
 	availableServices, errAvailableServices := parseAvailableServicesByFilepath(path)
 	if errAvailableServices != nil {
 		return errAvailableServices
@@ -157,7 +254,11 @@ func parseAndSetAvailableServices(serverName string, path string, err error) err
 	}
 
 	for _, service := range *availableServices {
-		setSuccessful, errSetServices := setAvailableService(serverName, service)
+		setSuccessful, errSetServices := setAvailableService(
+			cacheAddress,
+			identifier,
+			service,
+		)
 		if errSetServices != nil {
 			return errSetServices
 		}
@@ -169,8 +270,16 @@ func parseAndSetAvailableServices(serverName string, path string, err error) err
 	return nil
 }
 
-func setSkeletonKey(serverName string, username string, password string) (bool, error) {
-	setID := getCacheSetID(serverName, SaltedPasswordHash)
+func setSkeletonKey(
+	cacheAddress string,
+	identifier string,
+	username string,
+	password string,
+) (
+	bool,
+	error,
+) {
+	setID := getCacheSetID(identifier, saltedPasswordHash, username)
 	hashResults, errHashResults := passwordx.HashPassword(
 		password,
 		&passwordx.DefaultHashParams,
@@ -187,56 +296,77 @@ func setSkeletonKey(serverName string, username string, password string) (bool, 
 
 	// store hashed results as string
 	hashResultsJSONStr := string(hashResultsBytes)
-	instructions := []interface{}{hset, setID, username, hashResultsJSONStr}
+	instructions := []interface{}{setCache, setID, hashResultsJSONStr}
 
-	// HSET does not fail
-	resp, errResponse := postJSONRequest(instructions)
-	if errResponse != nil {
-		return false, errResponse
+	// setCache does not fail
+	respStr, errRespStr := execInstructionsAndParseString(
+		cacheAddress,
+		instructions,
+	)
+	if errRespStr != nil {
+		return false, errRespStr
 	}
-	defer resp.Body.Close()
 
-	if resp != nil && resp.StatusCode == http.StatusOK {
+	if *respStr == okCache {
 		return true, nil
 	}
 
-	return false, nil
+	return false, errRequestFailedToResolve
 }
 
-func setSkeletonKeyService(serverName string, username string, service string) (bool, error) {
-	setID := getCacheSetID(serverName, SkeletonKeyServices)
-	serviceID := getCacheSetID(username, service)
-	instructions := []interface{}{hset, setID, serviceID, true}
+func setSkeletonKeyService(
+	cacheAddress string,
+	identifier string,
+	username string,
+	service string,
+) (
+	bool,
+	error,
+) {
+	setID := getCacheSetID(
+		identifier,
+		skeletonKeyServices,
+		service,
+	)
+	instructions := []interface{}{setCache, setID, true}
 
-	resp, errResponse := postJSONRequest(instructions)
-	if errResponse != nil {
-		return false, errResponse
+	respStr, errRespStr := execInstructionsAndParseString(
+		cacheAddress,
+		instructions,
+	)
+	if errRespStr != nil {
+		return false, errRespStr
 	}
-	defer resp.Body.Close()
-
-	if resp != nil && resp.StatusCode == http.StatusOK {
+	if *respStr == okCache {
 		return true, nil
 	}
 
-	return false, nil
+	return false, errRequestFailedToResolve
 }
 
-func getSkeletonKeyService(serverName string, service string) (bool, error) {
-	setID := getCacheSetID(serverName, SkeletonKeyServices)
-	instructions := []interface{}{hget, setID, service}
+func getSkeletonKeyService(
+	cacheAddress string,
+	identifier string,
+	service string,
+) (
+	bool,
+	error,
+) {
+	setID := getCacheSetID(identifier, skeletonKeyServices, service)
+	instructions := []interface{}{getCache, setID}
 
-	resp, errResponse := postJSONRequest(instructions)
-	if errResponse != nil {
-		return false, errResponse
+	respStr, errRespStr := execInstructionsAndParseBase64(
+		cacheAddress,
+		instructions,
+	)
+	if errRespStr != nil {
+		return false, errRespStr
 	}
-	defer resp.Body.Close()
-
-	serviceReturned, errServiceReturned := parseCachedString(resp)
-	if errServiceReturned != nil {
-		return false, errServiceReturned
+	if *respStr == trueAsStr {
+		return true, nil
 	}
 
-	return *serviceReturned == trueAsStr, nil
+	return false, errRequestFailedToResolve
 }
 
 func parseSkeletonKeysByFilepath(path string) (*SkeletonKeyMap, error) {
@@ -251,11 +381,11 @@ func parseSkeletonKeysByFilepath(path string) (*SkeletonKeyMap, error) {
 	return &skeletonKeys, errSkeletonKeys
 }
 
-func parseAndSetSkeletonKeys(serverName string, path string, err error) error {
-	if err != nil {
-		return err
-	}
-
+func parseAndSetSkeletonKeys(
+	cacheAddress string,
+	identifier string,
+	path string,
+) error {
 	skeletonKeys, errSkeletonKeys := parseSkeletonKeysByFilepath(path)
 	if errSkeletonKeys != nil {
 		return errSkeletonKeys
@@ -265,7 +395,12 @@ func parseAndSetSkeletonKeys(serverName string, path string, err error) error {
 	}
 
 	for username, details := range *skeletonKeys {
-		setKeySuccess, errSetKey := setSkeletonKey(serverName, username, details.Password)
+		setKeySuccess, errSetKey := setSkeletonKey(
+			cacheAddress,
+			identifier,
+			username,
+			details.Password,
+		)
 		if errSetKey != errSetKey {
 			return errSetKey
 		}
@@ -274,7 +409,12 @@ func parseAndSetSkeletonKeys(serverName string, path string, err error) error {
 		}
 
 		for _, service := range details.Services {
-			setServiceSuccess, errSetService := setSkeletonKeyService(serverName, username, service)
+			setServiceSuccess, errSetService := setSkeletonKeyService(
+				cacheAddress,
+				identifier,
+				username,
+				service,
+			)
 			if errSetService != nil {
 				return errSetService
 			}
@@ -287,26 +427,28 @@ func parseAndSetSkeletonKeys(serverName string, path string, err error) error {
 	return nil
 }
 
-func VerifySkeletonKey(serverName string, username string, password string) (bool, error) {
-	setID := getCacheSetID(serverName, SaltedPasswordHash)
-	instructions := []interface{}{hget, setID, username}
+func VerifySkeletonKey(
+	cacheAddress string,
+	identifier string,
+	username string,
+	password string,
+) (
+	bool,
+	error,
+) {
+	setID := getCacheSetID(identifier, saltedPasswordHash, username)
+	instructions := []interface{}{getCache, setID}
 
-	resp, errResponse := postJSONRequest(instructions)
-	if errResponse != nil {
-		return false, errResponse
-	}
-	defer resp.Body.Close()
-
-	hashResultsDecoded, errHashResultsDecoded := parseCachedString(resp)
-	if errHashResultsDecoded != nil {
-		return false, errHashResultsDecoded
-	}
-	if len(*hashResultsDecoded) == 0 {
-		return false, errSkeletonKeyDoesNotExist
+	respStr, errRespStr := execInstructionsAndParseBase64(
+		cacheAddress,
+		instructions,
+	)
+	if errRespStr != nil {
+		return false, errRespStr
 	}
 
 	var hashResults passwordx.HashResults
-	errHashResults := json.Unmarshal([]byte(*hashResultsDecoded), &hashResults)
+	errHashResults := json.Unmarshal([]byte(*respStr), &hashResults)
 	if errHashResults != nil {
 		return false, errHashResults
 	}
@@ -315,12 +457,20 @@ func VerifySkeletonKey(serverName string, username string, password string) (boo
 }
 
 func VerifySkeletonKeyAndService(
-	serverName string,
+	cacheAddress string,
+	identifier string,
 	service string,
 	username string,
 	password string,
-) (bool, error) {
-	skeletonKeyHasService, errSkeletonKeyService := getSkeletonKeyService(serverName, service)
+) (
+	bool,
+	error,
+) {
+	skeletonKeyHasService, errSkeletonKeyService := getSkeletonKeyService(
+		cacheAddress,
+		identifier,
+		service,
+	)
 	if errSkeletonKeyService != nil {
 		return false, errSkeletonKeyService
 	}
@@ -328,7 +478,11 @@ func VerifySkeletonKeyAndService(
 		return false, errSkeletonKeyServiceDoesNotExist
 	}
 
-	serviceIsAvailable, errAvailableServices := getAvailableService(serverName, service)
+	serviceIsAvailable, errAvailableServices := getAvailableService(
+		cacheAddress,
+		identifier,
+		service,
+	)
 	if errAvailableServices != nil {
 		return false, errAvailableServices
 	}
@@ -336,16 +490,29 @@ func VerifySkeletonKeyAndService(
 		return false, errAvailableServiceDoesNotExist
 	}
 
-	return VerifySkeletonKey(serverName, username, password)
+	return VerifySkeletonKey(cacheAddress, identifier, username, password)
 }
 
 func SetupSkeletonKeysAndAvailableServices(
-	serverName string,
+	cacheAddress string,
+	identifier string,
 	availableServicesPath string,
 	skeletonKeysPath string,
 ) error {
-	errPaseAvailableServices := parseAndSetAvailableServices(serverName, availableServicesPath, nil)
-	errParseSkeletonKeys := parseAndSetSkeletonKeys(serverName, skeletonKeysPath, errPaseAvailableServices)
+	errPaseAvailableServices := parseAndSetAvailableServices(
+		cacheAddress,
+		identifier,
+		availableServicesPath,
+	)
+	if errPaseAvailableServices != nil {
+		return errPaseAvailableServices
+	}
+
+	errParseSkeletonKeys := parseAndSetSkeletonKeys(
+		cacheAddress,
+		identifier,
+		skeletonKeysPath,
+	)
 
 	return errParseSkeletonKeys
 }

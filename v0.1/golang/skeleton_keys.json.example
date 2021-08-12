@@ -1,0 +1,8 @@
+{
+    "superawesomeuser": {
+        "password": "superpassword",
+        "services": [
+            "super_host"
+        ]
+    }
+}

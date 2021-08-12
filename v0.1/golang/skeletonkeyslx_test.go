@@ -2,46 +2,77 @@ package skeletonkeyslx
 
 import (
 	"fmt"
-	"net/http"
 	"os"
 	"testing"
 )
 
 const (
-	increment         = "INCR"
-	testJSONIncrement = "test_json_increment"
-	skeletonKeysTest  = "skeletonkeys_test"
-	testService       = "test_service"
-	testUser          = "test_user"
-	testFailUser      = "test_failuser"
-	testPassword      = "test_password"
-	testBadPassword   = "test_badpassword"
+	testIncrement  = "INCR"
+	testIncrSet    = "test_increment_test"
+	testExecSetStr = "test_exec_set_gateway"
+
+	skeletonKeysTest = "test_skeleton_keys_test"
+	testService      = "test_service"
+	testUser         = "test_user"
+	testFailUser     = "test_failuser"
+	testPassword     = "test_password"
+	testBadPassword  = "test_badpassword"
 )
 
 var (
-	testAvailableServicesPath = os.Getenv("AVAILABLE_SERVICES_FILEPATH_TEST")
-	testSkeletonKeysPath      = os.Getenv("SKELETON_KEYS_FILEPATH_TEST")
+	localCacheAddress = os.Getenv("LOCAL_CACHE_ADDRESS")
+	// localCacheAddress = "http://10.88.0.1:6050"
+
+	testAvailableServicesPath = "./available_services.json.example"
+	testSkeletonKeysPath      = "./skeleton_keys.json.example"
 )
 
-func TestPostJSONRequest(t *testing.T) {
-	instructions := []interface{}{increment, testJSONIncrement}
-	resp, errResp := postJSONRequest(instructions)
-	if errResp != nil {
+func TestExecInstructionsAndParseInt64(t *testing.T) {
+	instructions := []interface{}{testIncrement, testIncrSet}
+	parsedInt64, errPasedInt64 := execInstructionsAndParseInt64(
+		localCacheAddress,
+		instructions,
+	)
+	if errPasedInt64 != nil {
 		t.Fail()
-		t.Logf(errResp.Error())
+		t.Logf(errPasedInt64.Error())
 	}
-	if resp == nil {
+	if parsedInt64 == nil {
 		t.Fail()
-		t.Logf(fmt.Sprint("set service was not successfuul"))
+		t.Logf("increment was not successfuul")
 	}
-	if resp != nil && resp.StatusCode != http.StatusOK {
+	if parsedInt64 != nil && *parsedInt64 < 1 {
 		t.Fail()
-		t.Logf(fmt.Sprint("response code was not:", http.StatusOK))
+		t.Logf("integer less than one returned")
+	}
+}
+
+func TestExecGetInstructionsAndParseString(t *testing.T) {
+	setInstructions := []interface{}{setCache, testExecSetStr, "hello_world"}
+	execInstructionsAndParseString(localCacheAddress, setInstructions)
+
+	getInstructions := []interface{}{getCache, testExecSetStr}
+	parsedStr, errParsedStr := execInstructionsAndParseString(localCacheAddress, getInstructions)
+	if errParsedStr != nil {
+		t.Fail()
+		t.Logf(errParsedStr.Error())
+	}
+	if parsedStr == nil {
+		t.Fail()
+		t.Logf("increment was not successfuul")
+	}
+	if parsedStr != nil && *parsedStr == "" {
+		t.Fail()
+		t.Logf("integer less than one returned")
 	}
 }
 
 func TestSetAvailableService(t *testing.T) {
-	setSuccessful, errSetSuccessful := setAvailableService(skeletonKeysTest, testService)
+	setSuccessful, errSetSuccessful := setAvailableService(
+		localCacheAddress,
+		skeletonKeysTest,
+		testService,
+	)
 	if !setSuccessful {
 		t.Fail()
 		t.Logf(fmt.Sprint("set service was not successfuul"))
@@ -53,10 +84,14 @@ func TestSetAvailableService(t *testing.T) {
 }
 
 func TestGetAvailableService(t *testing.T) {
-	getSuccessful, errGetSuccessful := getAvailableService(skeletonKeysTest, testService)
+	getSuccessful, errGetSuccessful := getAvailableService(
+		localCacheAddress,
+		skeletonKeysTest,
+		testService,
+	)
 	if !getSuccessful {
 		t.Fail()
-		t.Logf(fmt.Sprint("set service was not successfuul"))
+		t.Logf(fmt.Sprint("get service was not successfuul"))
 	}
 	if errGetSuccessful != nil {
 		t.Fail()
@@ -65,7 +100,9 @@ func TestGetAvailableService(t *testing.T) {
 }
 
 func TestParseAvailableService(t *testing.T) {
-	availableServices, errAvailableServices := parseAvailableServicesByFilepath(testAvailableServicesPath)
+	availableServices, errAvailableServices := parseAvailableServicesByFilepath(
+		testAvailableServicesPath,
+	)
 	if availableServices == nil {
 		t.Fail()
 		t.Logf(fmt.Sprint("parsing resulted in nil available services"))
@@ -77,7 +114,11 @@ func TestParseAvailableService(t *testing.T) {
 }
 
 func TestParseAndSetAvailableServices(t *testing.T) {
-	errParseAndSet := parseAndSetAvailableServices(skeletonKeysTest, testAvailableServicesPath, nil)
+	errParseAndSet := parseAndSetAvailableServices(
+		localCacheAddress,
+		skeletonKeysTest,
+		testAvailableServicesPath,
+	)
 	if errParseAndSet != nil {
 		t.Fail()
 		t.Logf(errParseAndSet.Error())
@@ -85,7 +126,12 @@ func TestParseAndSetAvailableServices(t *testing.T) {
 }
 
 func TestSetSkeletonKey(t *testing.T) {
-	setSuccessful, errSetSuccessful := setSkeletonKey(skeletonKeysTest, testUser, testPassword)
+	setSuccessful, errSetSuccessful := setSkeletonKey(
+		localCacheAddress,
+		skeletonKeysTest,
+		testUser,
+		testPassword,
+	)
 	if !setSuccessful {
 		t.Fail()
 		t.Logf(fmt.Sprint("set skeleton key was not successfuul"))
@@ -96,8 +142,30 @@ func TestSetSkeletonKey(t *testing.T) {
 	}
 }
 
+func TestSetSkeletonKeyService(t *testing.T) {
+	setSuccessful, errSetSuccessful := setSkeletonKeyService(
+		localCacheAddress,
+		skeletonKeysTest,
+		testUser,
+		testService,
+	)
+	if !setSuccessful {
+		t.Fail()
+		t.Logf(fmt.Sprint("set service was not successfuul"))
+	}
+	if errSetSuccessful != nil {
+		t.Fail()
+		t.Logf(errSetSuccessful.Error())
+	}
+}
+
 func TestVerifySkeletonKey(t *testing.T) {
-	verified, errVerified := VerifySkeletonKey(skeletonKeysTest, testUser, testPassword)
+	verified, errVerified := VerifySkeletonKey(
+		localCacheAddress,
+		skeletonKeysTest,
+		testUser,
+		testPassword,
+	)
 	if !verified {
 		t.Fail()
 		t.Logf(fmt.Sprint("verify skeleton key was not successfuul"))
@@ -109,7 +177,12 @@ func TestVerifySkeletonKey(t *testing.T) {
 }
 
 func TestBadSkeletonKeyWontVerify(t *testing.T) {
-	verified, errVerified := VerifySkeletonKey(skeletonKeysTest, testFailUser, testPassword)
+	verified, errVerified := VerifySkeletonKey(
+		localCacheAddress,
+		skeletonKeysTest,
+		testFailUser,
+		testPassword,
+	)
 	if verified {
 		t.Fail()
 		t.Logf(fmt.Sprint("unidentified skeleton key was successfuul"))
@@ -121,7 +194,12 @@ func TestBadSkeletonKeyWontVerify(t *testing.T) {
 }
 
 func TestBadSkeletonKeyPasswordWontVerify(t *testing.T) {
-	verified, errVerified := VerifySkeletonKey(skeletonKeysTest, testUser, testBadPassword)
+	verified, errVerified := VerifySkeletonKey(
+		localCacheAddress,
+		skeletonKeysTest,
+		testUser,
+		testBadPassword,
+	)
 	if verified {
 		t.Fail()
 		t.Logf(fmt.Sprint("badd password successfuul"))
@@ -132,20 +210,12 @@ func TestBadSkeletonKeyPasswordWontVerify(t *testing.T) {
 	}
 }
 
-func TestSetSkeletonKeyService(t *testing.T) {
-	setSuccessful, errSetSuccessful := setSkeletonKeyService(skeletonKeysTest, testUser, testService)
-	if !setSuccessful {
-		t.Fail()
-		t.Logf(fmt.Sprint("set service was not successfuul"))
-	}
-	if errSetSuccessful != nil {
-		t.Fail()
-		t.Logf(errSetSuccessful.Error())
-	}
-}
-
 func TestGetSkeletonKeyService(t *testing.T) {
-	getSuccessful, errGetSuccessful := getSkeletonKeyService(skeletonKeysTest, testService)
+	getSuccessful, errGetSuccessful := getSkeletonKeyService(
+		localCacheAddress,
+		skeletonKeysTest,
+		testService,
+	)
 	if !getSuccessful {
 		t.Fail()
 		t.Logf(fmt.Sprint("set service was not successfuul"))
@@ -157,7 +227,9 @@ func TestGetSkeletonKeyService(t *testing.T) {
 }
 
 func TestParseSkeletonKeys(t *testing.T) {
-	skeletonKeys, errParseSkeletonKeys := parseSkeletonKeysByFilepath(testSkeletonKeysPath)
+	skeletonKeys, errParseSkeletonKeys := parseSkeletonKeysByFilepath(
+		testSkeletonKeysPath,
+	)
 	if skeletonKeys == nil {
 		t.Fail()
 		t.Logf(fmt.Sprint("parsing resulted in nil skeleton keys"))
@@ -169,7 +241,11 @@ func TestParseSkeletonKeys(t *testing.T) {
 }
 
 func TestParseAndSetSkeletonKeys(t *testing.T) {
-	errParseAndSet := parseAndSetSkeletonKeys(skeletonKeysTest, testSkeletonKeysPath, nil)
+	errParseAndSet := parseAndSetSkeletonKeys(
+		localCacheAddress,
+		skeletonKeysTest,
+		testSkeletonKeysPath,
+	)
 	if errParseAndSet != nil {
 		t.Fail()
 		t.Logf(errParseAndSet.Error())
@@ -178,6 +254,7 @@ func TestParseAndSetSkeletonKeys(t *testing.T) {
 
 func TestVerifySkeletonKeyAndService(t *testing.T) {
 	verified, errVerified := VerifySkeletonKeyAndService(
+		localCacheAddress,
 		skeletonKeysTest,
 		testService,
 		testUser,
@@ -195,6 +272,7 @@ func TestVerifySkeletonKeyAndService(t *testing.T) {
 
 func TestSetupSkeletonKeysAndAvailableServices(t *testing.T) {
 	errSetupSkeletonKeys := SetupSkeletonKeysAndAvailableServices(
+		localCacheAddress,
 		skeletonKeysTest,
 		testAvailableServicesPath,
 		testSkeletonKeysPath,
