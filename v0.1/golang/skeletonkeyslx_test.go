@@ -21,38 +21,21 @@ const (
 
 var (
 	localCacheAddress = os.Getenv("LOCAL_CACHE_ADDRESS")
-	// localCacheAddress = "http://10.88.0.1:6050"
+	// localCacheAddress = "http://10.88.0.1:1234"
 
 	testAvailableServicesPath = "./available_services.json.example"
 	testSkeletonKeysPath      = "./skeleton_keys.json.example"
 )
 
-func TestExecInstructionsAndParseInt64(t *testing.T) {
-	instructions := []interface{}{testIncrement, testIncrSet}
-	parsedInt64, errPasedInt64 := execInstructionsAndParseInt64(
-		localCacheAddress,
-		instructions,
-	)
-	if errPasedInt64 != nil {
-		t.Fail()
-		t.Logf(errPasedInt64.Error())
-	}
-	if parsedInt64 == nil {
-		t.Fail()
-		t.Logf("increment was not successfuul")
-	}
-	if parsedInt64 != nil && *parsedInt64 < 1 {
-		t.Fail()
-		t.Logf("integer less than one returned")
-	}
-}
-
 func TestExecGetInstructionsAndParseString(t *testing.T) {
 	setInstructions := []interface{}{setCache, testExecSetStr, "hello_world"}
-	execInstructionsAndParseString(localCacheAddress, setInstructions)
+	execInstructionsAndParseString(localCacheAddress, &setInstructions)
 
 	getInstructions := []interface{}{getCache, testExecSetStr}
-	parsedStr, errParsedStr := execInstructionsAndParseString(localCacheAddress, getInstructions)
+	parsedStr, errParsedStr := execInstructionsAndParseString(
+		localCacheAddress,
+		&getInstructions,
+	)
 	if errParsedStr != nil {
 		t.Fail()
 		t.Logf(errParsedStr.Error())

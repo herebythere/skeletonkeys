@@ -52,47 +52,9 @@ func getCacheSetID(categories ...string) string {
 	return strings.Join(categories, colonDelimiter)
 }
 
-func execInstructionsAndParseInt64(
-	cacheAddress string,
-	instructions []interface{},
-) (
-	*int64,
-	error,
-) {
-	if instructions == nil {
-		return nil, errNilEntry
-	}
-
-	bodyBytes := new(bytes.Buffer)
-	errJson := json.NewEncoder(bodyBytes).Encode(instructions)
-	if errJson != nil {
-		return nil, errJson
-	}
-
-	resp, errResp := http.Post(cacheAddress, applicationJSON, bodyBytes)
-	if errResp != nil {
-		return nil, errResp
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return nil, errRequestFailedToResolve
-	}
-
-	var respBodyInt64 int64
-	errJSONResponse := json.NewDecoder(resp.Body).Decode(&respBodyInt64)
-	if errJSONResponse != nil {
-		return nil, errJSONResponse
-	}
-	if &respBodyInt64 != nil {
-		return &respBodyInt64, nil
-	}
-
-	return nil, errNilStringWasReturned
-}
-
 func execInstructionsAndParseString(
 	cacheAddress string,
-	instructions []interface{},
+	instructions *[]interface{},
 ) (
 	*string,
 	error,
@@ -102,7 +64,7 @@ func execInstructionsAndParseString(
 	}
 
 	bodyBytes := new(bytes.Buffer)
-	errJson := json.NewEncoder(bodyBytes).Encode(instructions)
+	errJson := json.NewEncoder(bodyBytes).Encode(*instructions)
 	if errJson != nil {
 		return nil, errJson
 	}
@@ -128,7 +90,7 @@ func execInstructionsAndParseString(
 
 func execInstructionsAndParseBase64(
 	cacheAddress string,
-	instructions []interface{},
+	instructions *[]interface{},
 ) (
 	*string,
 	error,
@@ -138,7 +100,7 @@ func execInstructionsAndParseBase64(
 	}
 
 	bodyBytes := new(bytes.Buffer)
-	errJson := json.NewEncoder(bodyBytes).Encode(instructions)
+	errJson := json.NewEncoder(bodyBytes).Encode(*instructions)
 	if errJson != nil {
 		return nil, errJson
 	}
@@ -184,7 +146,7 @@ func setAvailableService(
 
 	respStr, errRespStr := execInstructionsAndParseString(
 		cacheAddress,
-		instructions,
+		&instructions,
 	)
 	if errRespStr != nil {
 		return false, errRespStr
@@ -210,7 +172,7 @@ func getAvailableService(
 
 	respStr, errRespStr := execInstructionsAndParseBase64(
 		cacheAddress,
-		instructions,
+		&instructions,
 	)
 	if errRespStr != nil {
 		return false, errRespStr
@@ -301,7 +263,7 @@ func setSkeletonKey(
 	// setCache does not fail
 	respStr, errRespStr := execInstructionsAndParseString(
 		cacheAddress,
-		instructions,
+		&instructions,
 	)
 	if errRespStr != nil {
 		return false, errRespStr
@@ -332,7 +294,7 @@ func setSkeletonKeyService(
 
 	respStr, errRespStr := execInstructionsAndParseString(
 		cacheAddress,
-		instructions,
+		&instructions,
 	)
 	if errRespStr != nil {
 		return false, errRespStr
@@ -357,7 +319,7 @@ func getSkeletonKeyService(
 
 	respStr, errRespStr := execInstructionsAndParseBase64(
 		cacheAddress,
-		instructions,
+		&instructions,
 	)
 	if errRespStr != nil {
 		return false, errRespStr
@@ -441,7 +403,7 @@ func VerifySkeletonKey(
 
 	respStr, errRespStr := execInstructionsAndParseBase64(
 		cacheAddress,
-		instructions,
+		&instructions,
 	)
 	if errRespStr != nil {
 		return false, errRespStr
