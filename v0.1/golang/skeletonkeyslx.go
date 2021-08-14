@@ -79,13 +79,13 @@ func execInstructionsAndParseString(
 		return nil, errRequestFailedToResolve
 	}
 
-	var respBodyAsBase64 string
-	errJSONResponse := json.NewDecoder(resp.Body).Decode(&respBodyAsBase64)
+	var respBodyAsStr string
+	errJSONResponse := json.NewDecoder(resp.Body).Decode(&respBodyAsStr)
 	if errJSONResponse != nil {
 		return nil, errJSONResponse
 	}
 
-	return &respBodyAsBase64, errJSONResponse
+	return &respBodyAsStr, errJSONResponse
 }
 
 func execInstructionsAndParseBase64(
