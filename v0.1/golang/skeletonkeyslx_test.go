@@ -1,16 +1,11 @@
 package skeletonkeyslx
 
 import (
-	"fmt"
 	"os"
 	"testing"
 )
 
 const (
-	testIncrement  = "INCR"
-	testIncrSet    = "test_increment_test"
-	testExecSetStr = "test_exec_set_gateway"
-
 	skeletonKeysTest = "test_skeleton_keys_test"
 	testService      = "test_service"
 	testUser         = "test_user"
@@ -21,34 +16,11 @@ const (
 
 var (
 	localCacheAddress = os.Getenv("LOCAL_CACHE_ADDRESS")
-	// localCacheAddress = "http://10.88.0.1:1234"
+	// localCacheAddress = "http://10.88.0.1:6050"
 
 	testAvailableServicesPath = "./available_services.json.example"
 	testSkeletonKeysPath      = "./skeleton_keys.json.example"
 )
-
-func TestExecGetInstructionsAndParseString(t *testing.T) {
-	setInstructions := []interface{}{setCache, testExecSetStr, "hello_world"}
-	execInstructionsAndParseString(localCacheAddress, &setInstructions)
-
-	getInstructions := []interface{}{getCache, testExecSetStr}
-	parsedStr, errParsedStr := execInstructionsAndParseString(
-		localCacheAddress,
-		&getInstructions,
-	)
-	if errParsedStr != nil {
-		t.Fail()
-		t.Logf(errParsedStr.Error())
-	}
-	if parsedStr == nil {
-		t.Fail()
-		t.Logf("increment was not successfuul")
-	}
-	if parsedStr != nil && *parsedStr == "" {
-		t.Fail()
-		t.Logf("integer less than one returned")
-	}
-}
 
 func TestSetAvailableService(t *testing.T) {
 	setSuccessful, errSetSuccessful := setAvailableService(
@@ -58,7 +30,7 @@ func TestSetAvailableService(t *testing.T) {
 	)
 	if !setSuccessful {
 		t.Fail()
-		t.Logf(fmt.Sprint("set service was not successfuul"))
+		t.Logf("set service was not successfuul")
 	}
 	if errSetSuccessful != nil {
 		t.Fail()
@@ -74,7 +46,7 @@ func TestGetAvailableService(t *testing.T) {
 	)
 	if !getSuccessful {
 		t.Fail()
-		t.Logf(fmt.Sprint("get service was not successfuul"))
+		t.Logf("fetching service was not successfuul")
 	}
 	if errGetSuccessful != nil {
 		t.Fail()
@@ -88,7 +60,7 @@ func TestParseAvailableService(t *testing.T) {
 	)
 	if availableServices == nil {
 		t.Fail()
-		t.Logf(fmt.Sprint("parsing resulted in nil available services"))
+		t.Logf("parsing resulted in nil available services")
 	}
 	if errAvailableServices != nil {
 		t.Fail()
@@ -117,7 +89,7 @@ func TestSetSkeletonKey(t *testing.T) {
 	)
 	if !setSuccessful {
 		t.Fail()
-		t.Logf(fmt.Sprint("set skeleton key was not successfuul"))
+		t.Logf("set skeleton key was not successfuul")
 	}
 	if errSetSuccessful != nil {
 		t.Fail()
@@ -134,7 +106,7 @@ func TestSetSkeletonKeyService(t *testing.T) {
 	)
 	if !setSuccessful {
 		t.Fail()
-		t.Logf(fmt.Sprint("set service was not successfuul"))
+		t.Logf("set skeleton key service was not successfuul")
 	}
 	if errSetSuccessful != nil {
 		t.Fail()
@@ -151,7 +123,7 @@ func TestVerifySkeletonKey(t *testing.T) {
 	)
 	if !verified {
 		t.Fail()
-		t.Logf(fmt.Sprint("verify skeleton key was not successfuul"))
+		t.Logf("skeleton key verification was not successfuul")
 	}
 	if errVerified != nil {
 		t.Fail()
@@ -168,11 +140,11 @@ func TestBadSkeletonKeyWontVerify(t *testing.T) {
 	)
 	if verified {
 		t.Fail()
-		t.Logf(fmt.Sprint("unidentified skeleton key was successfuul"))
+		t.Logf("unidentified skeleton key was successfuul")
 	}
 	if errVerified == nil {
 		t.Fail()
-		t.Logf(fmt.Sprint("an error should have been returned on bad skeleton key"))
+		t.Logf("an error should have been returned on bad skeleton key")
 	}
 }
 
@@ -185,7 +157,7 @@ func TestBadSkeletonKeyPasswordWontVerify(t *testing.T) {
 	)
 	if verified {
 		t.Fail()
-		t.Logf(fmt.Sprint("badd password successfuul"))
+		t.Logf("badd password successfuul, very bad")
 	}
 	if errVerified != nil {
 		t.Fail()
@@ -201,7 +173,7 @@ func TestGetSkeletonKeyService(t *testing.T) {
 	)
 	if !getSuccessful {
 		t.Fail()
-		t.Logf(fmt.Sprint("set service was not successfuul"))
+		t.Logf("get skeleton key service was not successfuul")
 	}
 	if errGetSuccessful != nil {
 		t.Fail()
@@ -215,7 +187,7 @@ func TestParseSkeletonKeys(t *testing.T) {
 	)
 	if skeletonKeys == nil {
 		t.Fail()
-		t.Logf(fmt.Sprint("parsing resulted in nil skeleton keys"))
+		t.Logf("skeleton key parse resulted in nil skeleton keys")
 	}
 	if errParseSkeletonKeys != nil {
 		t.Fail()
@@ -245,7 +217,7 @@ func TestVerifySkeletonKeyAndService(t *testing.T) {
 	)
 	if !verified {
 		t.Fail()
-		t.Logf(fmt.Sprint("verify skeleton key was not successfuul"))
+		t.Logf("verify skeleton key and service was not successfuul")
 	}
 	if errVerified != nil {
 		t.Fail()

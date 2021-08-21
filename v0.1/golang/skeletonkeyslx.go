@@ -1,15 +1,13 @@
 package skeletonkeyslx
 
 import (
-	"bytes"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"io/ioutil"
-	"net/http"
 	"strings"
 
 	passwordx "github.com/herebythere/passwordx/v0.1/golang"
+	sclx "github.com/herebythere/supercachelx/v0.1/golang"
 )
 
 type KeyDetails struct {
@@ -28,12 +26,9 @@ const (
 	availableServices   = "available_services"
 	saltedPasswordHash  = "salted_password_hash"
 	skeletonKeyServices = "skeleton_key_services"
-	applicationJSON     = "application/json"
 )
 
 var (
-	errNilEntry                       = errors.New("nil entry was provided")
-	errNilStringWasReturned           = errors.New("nil string was returned")
 	errAvailableServiceDoesNotExist   = errors.New("available service does not exist")
 	errSkeletonKeysAreNil             = errors.New("skeleton keys are nil")
 	errSkeletonKeyServiceDoesNotExist = errors.New("skeleton key service does not exist")
@@ -52,87 +47,6 @@ func getCacheSetID(categories ...string) string {
 	return strings.Join(categories, colonDelimiter)
 }
 
-func execInstructionsAndParseString(
-	cacheAddress string,
-	instructions *[]interface{},
-) (
-	*string,
-	error,
-) {
-	if instructions == nil {
-		return nil, errNilEntry
-	}
-
-	bodyBytes := new(bytes.Buffer)
-	errJson := json.NewEncoder(bodyBytes).Encode(*instructions)
-	if errJson != nil {
-		return nil, errJson
-	}
-
-	resp, errResp := http.Post(cacheAddress, applicationJSON, bodyBytes)
-	if errResp != nil {
-		return nil, errResp
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, errRequestFailedToResolve
-	}
-
-	var respBodyAsStr string
-	errJSONResponse := json.NewDecoder(resp.Body).Decode(&respBodyAsStr)
-	if errJSONResponse != nil {
-		return nil, errJSONResponse
-	}
-
-	return &respBodyAsStr, errJSONResponse
-}
-
-func execInstructionsAndParseBase64(
-	cacheAddress string,
-	instructions *[]interface{},
-) (
-	*string,
-	error,
-) {
-	if instructions == nil {
-		return nil, errNilEntry
-	}
-
-	bodyBytes := new(bytes.Buffer)
-	errJson := json.NewEncoder(bodyBytes).Encode(*instructions)
-	if errJson != nil {
-		return nil, errJson
-	}
-
-	resp, errResp := http.Post(cacheAddress, applicationJSON, bodyBytes)
-	if errResp != nil {
-		return nil, errResp
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, errRequestFailedToResolve
-	}
-
-	var respBodyAsBase64 string
-	errJSONResponse := json.NewDecoder(resp.Body).Decode(&respBodyAsBase64)
-	if errJSONResponse != nil {
-		return nil, errJSONResponse
-	}
-
-	respBodyAsBytes, errRespBodyAsBytes := base64.URLEncoding.DecodeString(
-		respBodyAsBase64,
-	)
-	if errRespBodyAsBytes != nil {
-		return nil, errRespBodyAsBytes
-	}
-
-	respBodyAsStr := string(respBodyAsBytes)
-
-	return &respBodyAsStr, nil
-}
-
 func setAvailableService(
 	cacheAddress string,
 	identifier string,
@@ -144,7 +58,7 @@ func setAvailableService(
 	setID := getCacheSetID(identifier, availableServices, service)
 	instructions := []interface{}{setCache, setID, true}
 
-	respStr, errRespStr := execInstructionsAndParseString(
+	respStr, errRespStr := sclx.ExecInstructionsAndParseString(
 		cacheAddress,
 		&instructions,
 	)
@@ -170,7 +84,7 @@ func getAvailableService(
 	setID := getCacheSetID(identifier, availableServices, service)
 	instructions := []interface{}{getCache, setID}
 
-	respStr, errRespStr := execInstructionsAndParseBase64(
+	respStr, errRespStr := sclx.ExecInstructionsAndParseBase64(
 		cacheAddress,
 		&instructions,
 	)
@@ -231,7 +145,7 @@ func setSkeletonKey(
 	instructions := []interface{}{setCache, setID, hashResultsJSONStr}
 
 	// setCache does not fail
-	respStr, errRespStr := execInstructionsAndParseString(
+	respStr, errRespStr := sclx.ExecInstructionsAndParseString(
 		cacheAddress,
 		&instructions,
 	)
@@ -262,7 +176,7 @@ func setSkeletonKeyService(
 	)
 	instructions := []interface{}{setCache, setID, true}
 
-	respStr, errRespStr := execInstructionsAndParseString(
+	respStr, errRespStr := sclx.ExecInstructionsAndParseString(
 		cacheAddress,
 		&instructions,
 	)
@@ -287,7 +201,7 @@ func getSkeletonKeyService(
 	setID := getCacheSetID(identifier, skeletonKeyServices, service)
 	instructions := []interface{}{getCache, setID}
 
-	respStr, errRespStr := execInstructionsAndParseBase64(
+	respStr, errRespStr := sclx.ExecInstructionsAndParseBase64(
 		cacheAddress,
 		&instructions,
 	)
@@ -312,6 +226,11 @@ func parseSkeletonKeysByFilepath(path string) (*SkeletonKeyMap, error) {
 
 	return &skeletonKeys, errSkeletonKeys
 }
+
+/*
+ * Exposed API
+ *
+ */
 
 func ParseAndSetAvailableServices(
 	cacheAddress string,
@@ -342,11 +261,6 @@ func ParseAndSetAvailableServices(
 
 	return nil
 }
-
-/*
- * Exposed API
- *
- */
 
 func ParseAndSetSkeletonKeys(
 	cacheAddress string,
@@ -406,7 +320,7 @@ func VerifySkeletonKey(
 	setID := getCacheSetID(identifier, saltedPasswordHash, username)
 	instructions := []interface{}{getCache, setID}
 
-	respStr, errRespStr := execInstructionsAndParseBase64(
+	respStr, errRespStr := sclx.ExecInstructionsAndParseBase64(
 		cacheAddress,
 		&instructions,
 	)
