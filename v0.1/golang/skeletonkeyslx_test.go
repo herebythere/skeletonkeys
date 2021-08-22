@@ -1,7 +1,7 @@
 package skeletonkeyslx
 
 import (
-	// "os"
+	"os"
 	"testing"
 )
 
@@ -15,8 +15,8 @@ const (
 )
 
 var (
-	// localCacheAddress = os.Getenv("LOCAL_CACHE_ADDRESS")
-	localCacheAddress = "http://10.88.0.1:6050"
+	localCacheAddress = os.Getenv("LOCAL_CACHE_ADDRESS")
+	// localCacheAddress = "http://10.88.0.1:1234"
 
 	testAvailableServicesPath = "./available_services.json.example"
 	testSkeletonKeysPath      = "./skeleton_keys.json.example"
