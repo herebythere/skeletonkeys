@@ -18,6 +18,8 @@ type SkeletonKeyMap = map[string]KeyDetails
 type AvailableServiceList = []string
 
 const (
+	expCache            = "EX"
+	weekInSeconds       = 604800
 	setCache            = "SET"
 	getCache            = "GET"
 	okCache             = "OK"
@@ -56,7 +58,13 @@ func setAvailableService(
 	error,
 ) {
 	setID := getCacheSetID(identifier, availableServices, service)
-	instructions := []interface{}{setCache, setID, true}
+	instructions := []interface{}{
+		setCache,
+		setID,
+		true,
+		expCache,
+		weekInSeconds,
+	}
 
 	respStr, errRespStr := sclx.ExecInstructionsAndParseString(
 		cacheAddress,
@@ -142,7 +150,13 @@ func setSkeletonKey(
 
 	// store hashed results as string
 	hashResultsJSONStr := string(hashResultsBytes)
-	instructions := []interface{}{setCache, setID, hashResultsJSONStr}
+	instructions := []interface{}{
+		setCache,
+		setID,
+		hashResultsJSONStr,
+		expCache,
+		weekInSeconds,
+	}
 
 	// setCache does not fail
 	respStr, errRespStr := sclx.ExecInstructionsAndParseString(
@@ -174,7 +188,13 @@ func setSkeletonKeyService(
 		skeletonKeyServices,
 		service,
 	)
-	instructions := []interface{}{setCache, setID, true}
+	instructions := []interface{}{
+		setCache,
+		setID,
+		true,
+		expCache,
+		weekInSeconds,
+	}
 
 	respStr, errRespStr := sclx.ExecInstructionsAndParseString(
 		cacheAddress,
